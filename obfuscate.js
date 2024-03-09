@@ -65,45 +65,42 @@ function analyzeHTML(filePath, searchWords = []) {
         }
       });
 
-      resolve(processedElements);
+      console.log(processedElements + pageTitle);
+      resolve({ processedElements, pageTitle });
     });
   });
 }
 
 // Function to process an element name and update the object
 function processElementName(elementName, elementType, data, searchWords) {
-  if (!data[elementName]) {
-    data[elementName] = {
-      elementType,
-      elementName,
-      processed: true,
-    };
-  }
-
   // Handle search words
   if (searchWords.length === 0) {
     // console.debug(`No search words provided, marking all elements processed.`);
     // data[elementName].processed = true;
   } else {
-    const matchFound = searchWords.some((word) => elementName.includes(word));
-    // const matchFound = searchWords.some(word => {
-    //     console.debug(`Checking word ${word} match for ${elementName}`);
-    //     return elementName.includes(word);
-    // });
+    const matchFound = searchWords.some((word) =>
+      elementName.toLowerCase().includes(word.toLowerCase())
+    );
 
     if (matchFound) {
       console.debug(`Match found for ${elementType}: ${elementName}`);
-      data[elementName].processed = false;
+      data[elementName] = {
+        elementType,
+        elementName,
+        processed: false,
+      };
     } else {
-      //   console.debug(`No match for ${elementType}: ${elementName}`);
-      //   data[elementName].processed = true;
-      //   data[elementName].newElementName = "xxxx"; // Set newElementName if not a match
       let randomString;
       do {
         randomString = generateUniqueRandomString(8); // Generate 8-character string
       } while (usedRandomStrings.has(randomString)); // Ensure uniqueness
       usedRandomStrings.add(randomString);
-      data[elementName].newElementName = randomString;
+      data[elementName] = {
+        elementType,
+        elementName,
+        newElementName: randomString,
+        processed: true,
+      };
     }
   }
 }
@@ -148,12 +145,18 @@ function replaceInFiles(processedElements, folderPath, oPath) {
         // Use a loop to iterate through processed elements
         for (const elementName in processedElements) {
           const newElementName = processedElements[elementName].newElementName;
-          const regex = new RegExp(`\\b${elementName}\\b`, "gi"); // Updated with word boundaries
-          replacedContent = replacedContent.replace(regex, (match) =>
-            match === elementName || match.includes(elementName)
-              ? newElementName
-              : match
-          );
+          if (newElementName) { // Check if newElementName exists before replacing
+            const regex = new RegExp(
+              `(?<=^|[^a-zA-Z0-9-_])${elementName}(?=$|[^a-zA-Z0-9-_])`,
+              "gi"
+            );
+
+            replacedContent = replacedContent.replace(regex, (match) =>
+              match === elementName || match.includes(elementName)
+                ? newElementName
+                : match
+            );
+          }
         }
       }
 
@@ -163,7 +166,11 @@ function replaceInFiles(processedElements, folderPath, oPath) {
 
       // Save the modified content to a new file in the "outcome" folder
       const outcomeFilePath = path.join(oPath, fileName);
-      fs.writeFileSync(outcomeFilePath, replacedContent, "utf-8");
+      try {
+        fs.writeFileSync(outcomeFilePath, replacedContent, "utf-8");
+      } catch (err) {
+        console.error(`Error writing file: ${outcomeFilePath}`, err);
+      }
     }
   });
 }
@@ -186,7 +193,7 @@ const outputFile = `vocabulary.json`;
 
 // Analyze the HTML file
 analyzeHTML(filePath, searchWords)
-  .then((data) => {
+  .then(({ processedElements, pageTitle }) => {
     const timestamp = moment().format("YYYYMMDD_HHmm"); // Or a different format without colons
     const outputFileName = `${pageTitle}_${timestamp}`;
 
@@ -195,18 +202,21 @@ analyzeHTML(filePath, searchWords)
       console.log("Output folder created successfully");
       fs.writeFileSync(
         path.join(outputFileName, outputFile),
-        JSON.stringify(data, null, 2)
+        JSON.stringify(processedElements, null, 2)
       );
       console.log(
         `JSON data written to ${path.join(outputFileName, outputFile)}`
       );
       const folderPath = path.dirname(filePath); // Assuming the files to replace are in the same directory as the analyzed HTML file
       console.log(`Replacing elements in files in folder: ${outputFileName}`);
-      replaceInFiles(data, folderPath, outputFileName);
+      replaceInFiles(processedElements, folderPath, outputFileName);
     } catch (err) {
       console.error(err);
     }
   })
   .catch((err) => {
-    console.error("Error:", err);
+    console.error(
+      `Error writing file: ${path.join(outputFileName, outputFile)}`,
+      err
+    );
   });
