@@ -99,15 +99,16 @@ function processElementName(elementName, elementType, data, searchWords) {
       //   data[elementName].processed = true;
       //   data[elementName].newElementName = "xxxx"; // Set newElementName if not a match
       let randomString;
-      randomString = generateUniqueRandomString(8); // Generate 8-character string
-      while (usedRandomStrings.has(randomString)); // Ensure uniqueness
+      do {
+        randomString = generateUniqueRandomString(8); // Generate 8-character string
+      } while (usedRandomStrings.has(randomString)); // Ensure uniqueness
       usedRandomStrings.add(randomString);
       data[elementName].newElementName = randomString;
     }
   }
 }
 
-function replaceInFiles(processedElements, folderPath) {
+function replaceInFiles(processedElements, folderPath, oPath) {
   const extensions = [".html", ".css", ".js"];
   fs.readdirSync(folderPath).forEach((fileName) => {
     const filePath = `${folderPath}/${fileName}`;
@@ -156,11 +157,12 @@ function replaceInFiles(processedElements, folderPath) {
         }
       }
 
+      console.log(`Outcome folder: ${oPath}`);
       // Create the output directory if it doesn't exist
-      fs.mkdirSync("./outcome", { recursive: true }); // Create recursively
+      fs.mkdirSync(oPath, { recursive: true }); // Create recursively
 
       // Save the modified content to a new file in the "outcome" folder
-      const outcomeFilePath = `./outcome/${fileName}`;
+      const outcomeFilePath = path.join(oPath, fileName);
       fs.writeFileSync(outcomeFilePath, replacedContent, "utf-8");
     }
   });
@@ -199,7 +201,8 @@ analyzeHTML(filePath, searchWords)
         `JSON data written to ${path.join(outputFileName, outputFile)}`
       );
       const folderPath = path.dirname(filePath); // Assuming the files to replace are in the same directory as the analyzed HTML file
-      replaceInFiles(data, folderPath);
+      console.log(`Replacing elements in files in folder: ${outputFileName}`);
+      replaceInFiles(data, folderPath, outputFileName);
     } catch (err) {
       console.error(err);
     }
