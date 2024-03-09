@@ -73,35 +73,33 @@ function analyzeHTML(filePath, searchWords = []) {
 
 // Function to process an element name and update the object
 function processElementName(elementName, elementType, data, searchWords) {
-  // Handle search words
-  if (searchWords.length === 0) {
-    // console.debug(`No search words provided, marking all elements processed.`);
-    // data[elementName].processed = true;
-  } else {
-    const matchFound = searchWords.some((word) =>
-      elementName.toLowerCase().includes(word.toLowerCase())
-    );
+  let randomString;
+  do {
+    randomString = generateUniqueRandomString(8); // Generate 8-character string
+  } while (usedRandomStrings.has(randomString)); // Ensure uniqueness
 
-    if (matchFound) {
-      console.debug(`Match found for ${elementType}: ${elementName}`);
-      data[elementName] = {
-        elementType,
-        elementName,
-        processed: false,
-      };
-    } else {
-      let randomString;
-      do {
-        randomString = generateUniqueRandomString(8); // Generate 8-character string
-      } while (usedRandomStrings.has(randomString)); // Ensure uniqueness
-      usedRandomStrings.add(randomString);
-      data[elementName] = {
-        elementType,
-        elementName,
-        newElementName: randomString,
-        processed: true,
-      };
-    }
+  // Split the element name on the hyphen
+  const [prefix, suffix] = elementName.split('-');
+
+  // Handle search words
+  if (searchWords.length === 0 || !searchWords.includes(prefix)) {
+    // If there's no search word or the prefix doesn't match a search word,
+    // replace the prefix with the random string
+    const newElementName = suffix ? `${randomString}-${suffix}` : randomString;
+    data[elementName] = {
+      elementType,
+      elementName,
+      newElementName,
+      processed: true,
+    };
+  } else {
+    // If the prefix matches a search word, keep the original name
+    data[elementName] = {
+      elementType,
+      elementName,
+      newElementName: elementName,
+      processed: false,
+    };
   }
 }
 
